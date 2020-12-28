@@ -11,7 +11,6 @@ public class Message implements Serializable {
     private Node substitutor;
 
     public enum MessageType {
-        REGISTER,
         TEXT,
         CONFIRMATION,
         SUBSTITUTION

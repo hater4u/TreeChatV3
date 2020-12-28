@@ -14,6 +14,7 @@ public class Server {
     private Integer lossPercentage;
     private Node parent;
     private Node substitutor;
+    private Node unresolved;
 
     private DatagramSocket datagramSocket;
 
@@ -54,13 +55,6 @@ public class Server {
         Timer substitutionTimer = new Timer();
         substitutionTimer.schedule(new SubstitutionTimerTask(), 0, SUBSTITUTION_PERIOD);
 
-        if (!isRootNode()) {
-            Message helloMessage = new Message(UUID.randomUUID(), "", name, Message.MessageType.REGISTER);
-            DatagramWrapper datagramWrapper = new DatagramWrapper(helloMessage, parent);
-            unconfirmedMessages.add(datagramWrapper);
-            sendMessage(datagramWrapper);
-        }
-
         while (true) {
             DatagramPacket receivedPacket = new DatagramPacket(new byte[2048], 0, 2048);
             datagramSocket.receive(receivedPacket);
@@ -70,17 +64,15 @@ public class Server {
                 continue;
             }
 
+            unresolved = new Node(receivedPacket.getAddress(), receivedPacket.getPort());
+            if (!children.contains(unresolved)) {
+                children.add(unresolved);
+            }
+
             DatagramWrapper datagramWrapper = new DatagramWrapper(receivedPacket);
             System.out.println("Received message: " + datagramWrapper.getMessage());
 
             switch (datagramWrapper.getMessage().getType()) {
-                case REGISTER:
-                    Node node = new Node(receivedPacket.getAddress(), receivedPacket.getPort());
-                    if (children.indexOf(node) == -1) {
-                        children.add(node);
-                    }
-                    sendConfirmation(datagramWrapper);
-                    break;
                 case TEXT:
                     if (hasSuchUuid(datagramWrapper.getMessage().getUuid()) == -1) {
                         System.out.println(datagramWrapper.getMessage().getSenderName() + ": " + datagramWrapper.getMessage().getText());
@@ -220,12 +212,6 @@ public class Server {
             System.out.println("Parent " + parent.getAddress() + ": " + parent.getPort() + " deleted");
             parent = substitutor;
             substitutor = null;
-
-            if (parent != null) {
-                DatagramWrapper helloYouAreMyFather = new DatagramWrapper(new Message(UUID.randomUUID(), "",
-                        name, Message.MessageType.REGISTER), parent);
-                sendMessage(helloYouAreMyFather );
-            }
         }
     }
 
